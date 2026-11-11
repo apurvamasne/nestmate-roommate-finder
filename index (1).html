@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Nestmate: take a quick lifestyle quiz and match with compatible roommates.">
+<title>Nestmate</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: a single centered column, like a phone app — quiz → swipe deck → matches list */
+:root{
+  --bg:#F2F4F1; --surface:#FFFFFF; --ink:#1A2726; --muted:#5E6E6B; --line:#D9DFDB;
+  --teal:#1F6F6B; --teal-soft:#DCEBE8; --brass:#B87A12; --brass-soft:#F5E7CC;
+  --good:#2E7D4F; --bad:#B4462F;
+  --display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --body:"Inter", system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111817; --surface:#1A2322; --ink:#E7EEEC; --muted:#9AABA7; --line:#2C3836;
+  --teal:#5BB8B1; --teal-soft:#1E3533; --brass:#E2A945; --brass-soft:#3A2E17;
+  --good:#6BC48E; --bad:#E58A74; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111817; --surface:#1A2322; --ink:#E7EEEC; --muted:#9AABA7; --line:#2C3836;
+  --teal:#5BB8B1; --teal-soft:#1E3533; --brass:#E2A945; --brass-soft:#3A2E17;
+  --good:#6BC48E; --bad:#E58A74; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.app{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{font-family:var(--display);font-weight:800;font-size:26px;letter-spacing:-.02em;display:flex;align-items:center;gap:8px}
+.brand svg{width:28px;height:28px}
+nav{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px}
+nav button{border:0;background:none;color:var(--muted);font:600 13px var(--body);padding:7px 14px;border-radius:999px;cursor:pointer}
+nav button[aria-current="true"]{background:var(--teal);color:var(--surface)}
+nav button:disabled{opacity:.4;cursor:not-allowed}
+button:focus-visible,input:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;letter-spacing:-.015em}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:22px}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.progress{height:6px;background:var(--line);border-radius:6px;overflow:hidden}
+.progress span{display:block;height:100%;background:var(--teal);transition:width .25s}
+.qhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:10px}
+.q h2{font-size:24px;margin:14px 0 6px}
+.q p.hint{color:var(--muted);margin:0 0 16px}
+.opts{display:flex;flex-direction:column;gap:8px}
+.opt{display:flex;align-items:center;gap:12px;text-align:left;width:100%;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);
+  border-radius:12px;padding:12px 14px;font:500 15px var(--body);cursor:pointer;transition:border-color .15s,background .15s}
+.opt:hover{border-color:var(--teal)}
+.opt[aria-pressed="true"]{border-color:var(--teal);background:var(--teal-soft)}
+.opt .k{flex:none;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:var(--surface);border:1px solid var(--line);font-size:12px;font-weight:600;color:var(--muted)}
+.budget{display:flex;flex-direction:column;gap:14px}
+.budget .val{font-family:var(--display);font-size:34px;font-weight:700;font-variant-numeric:tabular-nums}
+.budget .val small{font-size:15px;color:var(--muted);font-family:var(--body);font-weight:500}
+.budget label{font-size:13px;font-weight:600;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+input[type=range]{width:100%;accent-color:var(--teal)}
+.navrow{display:flex;justify-content:space-between;gap:10px;margin-top:20px}
+.btn{border:0;border-radius:12px;padding:12px 18px;font:600 15px var(--body);cursor:pointer}
+.btn.primary{background:var(--teal);color:var(--surface)}
+.btn.primary:disabled{opacity:.4;cursor:not-allowed}
+.btn.ghost{background:none;color:var(--muted);border:1px solid var(--line)}
+/* Card */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:22px;overflow:hidden;transition:transform .25s,opacity .25s}
+.card.out-left{transform:translateX(-40px) rotate(-4deg);opacity:0}
+.card.out-right{transform:translateX(40px) rotate(4deg);opacity:0}
+.card-top{display:flex;gap:16px;align-items:center;padding:20px 20px 0}
+.avatar{flex:none;width:64px;height:64px;border-radius:18px;display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:24px;color:#fff}
+.who{min-width:0;flex:1}
+.who h3{font-size:22px}
+.who .meta{color:var(--muted);font-size:13px}
+.score{flex:none;text-align:center}
+.ring{--p:0;width:64px;height:64px;border-radius:50%;display:grid;place-items:center;
+  background:conic-gradient(var(--teal) calc(var(--p)*1%),var(--line) 0)}
+.ring b{width:52px;height:52px;border-radius:50%;background:var(--surface);display:grid;place-items:center;font-family:var(--display);font-size:18px;font-variant-numeric:tabular-nums}
+.score small{display:block;font-size:11px;color:var(--muted);margin-top:4px}
+.card-body{padding:16px 20px 20px;display:flex;flex-direction:column;gap:14px}
+.bio{margin:0}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fact{background:var(--bg);border-radius:12px;padding:10px 12px}
+.fact .l{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.fact .v{font-weight:600;font-variant-numeric:tabular-nums}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:13px;padding:4px 10px;border-radius:999px;font-weight:500}
+.chip.yes{background:var(--teal-soft);color:var(--teal)}
+.chip.no{background:var(--brass-soft);color:var(--brass)}
+.actions{display:flex;gap:12px}
+.actions .btn{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;font-size:16px;padding:14px}
+.pass{background:var(--bg);color:var(--ink);border:1px solid var(--line)}
+.like{background:var(--teal);color:var(--surface)}
+.deckmeta{display:flex;justify-content:space-between;color:var(--muted);font-size:13px}
+.empty{text-align:center;color:var(--muted);padding:40px 20px}
+.empty h2{color:var(--ink);margin-bottom:6px}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);
+  padding:10px 18px;border-radius:999px;font-weight:600;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+.mlist{display:flex;flex-direction:column;gap:10px}
+.mrow{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px}
+.mrow .avatar{width:48px;height:48px;font-size:18px;border-radius:14px}
+.mrow .who h3{font-size:17px}
+.pill{font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.pill.mutual{background:var(--teal-soft);color:var(--teal)}
+.pill.wait{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.note{font-size:13px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <div class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 15 16 5l12 10v12H4z" fill="var(--teal)"/><circle cx="12" cy="20" r="3" fill="var(--surface)"/><circle cx="20" cy="20" r="3" fill="var(--brass)"/></svg>
+      Nestmate
+    </div>
+    <nav aria-label="Sections">
+      <button id="nav-quiz" data-view="quiz">Quiz</button>
+      <button id="nav-deck" data-view="deck">Discover</button>
+      <button id="nav-matches" data-view="matches">Matches</button>
+    </nav>
+  </header>
+  <main id="view"></main>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const Q = [
+  {id:"budget", type:"budget", title:"What's your monthly rent budget?", hint:"Your share of the rent, before utilities."},
+  {id:"clean", title:"How tidy do you keep shared spaces?", hint:"Kitchen, bathroom, living room.", w:1.5,
+    opts:["Lived-in is fine","Clean-ish, weekly reset","Tidy most days","Spotless, always"], label:["Relaxed about mess","Weekly cleaner","Tidy","Very neat"]},
+  {id:"sleep", title:"What does your sleep schedule look like?", w:1.2,
+    opts:["Early bird, in bed by 10","Pretty regular, 11ish","Night owl, up past 1"], label:["Early bird","Regular sleeper","Night owl"]},
+  {id:"pets", type:"pets", title:"How do you feel about pets?", w:1.5,
+    opts:["I have a pet (or will)","I'd love a pet in the place","Fine either way","No pets, please"], label:["Has a pet","Pet lover","Pet-neutral","No pets"]},
+  {id:"smoke", type:"smoke", title:"Do you smoke or vape?", w:2,
+    opts:["Yes, sometimes indoors","Yes, outside only","No, but I don't mind it outside","No, and I'd rather live with a non-smoker"], label:["Smokes indoors","Smokes outside","Non-smoker, flexible","Smoke-free only"]},
+  {id:"guests", title:"How often do you have people over?", w:1,
+    opts:["Rarely","A few times a month","Most weekends","Partner basically lives here"], label:["Rare guests","Some guests","Frequent guests","Partner stays over"]},
+  {id:"noise", title:"What's your ideal noise level at home?", w:1,
+    opts:["Library quiet","Some music, quiet at night","Music, TV, life happening"], label:["Quiet home","Moderate noise","Lively home"]},
+  {id:"wfh", title:"Do you work or study from home?", w:.8,
+    opts:["Never, I'm out all day","A couple of days a week","Every day"], label:["Out all day","Hybrid","Home every day"]},
+  {id:"share", title:"How do you feel about sharing groceries and supplies?", w:.8,
+    opts:["Keep everything separate","Share basics like soap and oil","Split groceries, cook together"], label:["Keeps things separate","Shares basics","Shares everything"]},
+  {id:"cook", title:"How much do you cook?", w:.6,
+    opts:["Takeout, mostly","A few times a week","Daily, full meals"], label:["Rarely cooks","Cooks sometimes","Cooks daily"]},
+  {id:"social", title:"What kind of roommate relationship do you want?", w:1.2,
+    opts:["Polite, we do our own thing","Friendly, the occasional dinner","Close friends, hang out often"], label:["Independent","Friendly","Social"]},
+  {id:"move", title:"When do you need to move in?", w:1,
+    opts:["Within a month","In 1–3 months","Flexible"], label:["Moving ASAP","Moving in 1–3 mo","Flexible move-in"]},
+];
+
+// Example profiles. In a real app these come from other users' quiz answers.
+const P = [
+  {id:1,name:"Maya R.",age:26,job:"UX designer",area:"Downtown",bio:"Plants, film photography and very strong coffee. I like a calm apartment and a Sunday reset.",min:850,max:1100,
+    a:{clean:2,sleep:1,pets:1,smoke:3,guests:1,noise:1,wfh:1,share:1,cook:1,social:1,move:1},color:"#1F6F6B"},
+  {id:2,name:"Jordan T.",age:29,job:"ER nurse",area:"Near the hospital",bio:"Rotating shifts, so I sleep at odd hours. Quiet, clean, and gone a lot. Have a sweet older cat named Biscuit.",min:900,max:1200,
+    a:{clean:3,sleep:2,pets:0,smoke:3,guests:0,noise:0,wfh:0,share:0,cook:1,social:0,move:0},color:"#7A4E9C"},
+  {id:3,name:"Sam K.",age:23,job:"Grad student",area:"University district",bio:"Engineering PhD. Big cook, bigger board-game collection. Looking for someone up for the occasional game night.",min:600,max:850,
+    a:{clean:1,sleep:2,pets:2,smoke:3,guests:2,noise:2,wfh:2,share:2,cook:2,social:2,move:2},color:"#B87A12"},
+  {id:4,name:"Priya N.",age:27,job:"Accountant",area:"Midtown",bio:"Gym at 6am, in bed by 10. Neat, organized, and happy to split a Costco run.",min:950,max:1300,
+    a:{clean:3,sleep:0,pets:3,smoke:3,guests:0,noise:0,wfh:1,share:2,cook:2,social:1,move:1},color:"#2E7D4F"},
+  {id:5,name:"Leo M.",age:31,job:"Bartender",area:"Arts district",bio:"Night owl by trade. Easygoing, with friends over on my nights off. Smoke on the balcony only.",min:700,max:950,
+    a:{clean:1,sleep:2,pets:2,smoke:1,guests:2,noise:2,wfh:0,share:1,cook:0,social:2,move:0},color:"#B4462F"},
+  {id:6,name:"Hannah L.",age:25,job:"Teacher",area:"Eastside",bio:"Third-grade teacher. I bake on weekends and have a very friendly golden retriever.",min:800,max:1050,
+    a:{clean:2,sleep:0,pets:0,smoke:3,guests:1,noise:1,wfh:0,share:2,cook:2,social:2,move:1},color:"#C2602B"},
+  {id:7,name:"Chris D.",age:28,job:"Software engineer",area:"Downtown",bio:"Fully remote, so I'm home a lot but quiet with headphones on. Keep to myself mostly, but up for a beer.",min:1000,max:1400,
+    a:{clean:2,sleep:1,pets:3,smoke:2,guests:1,noise:1,wfh:2,share:0,cook:1,social:1,move:2},color:"#3A5A8C"},
+  {id:8,name:"Alex P.",age:24,job:"Barista & musician",area:"Arts district",bio:"Play guitar, practice at reasonable hours. Love animals and a full fridge.",min:650,max:900,
+    a:{clean:1,sleep:1,pets:1,smoke:2,guests:2,noise:2,wfh:1,share:2,cook:1,social:2,move:2},color:"#6A7B2B"},
+];
+
+let state = {answers:{budgetMin:800,budgetMax:1100}, step:0, done:false, liked:[], passed:[], view:"quiz"};
+try{ const s=JSON.parse(localStorage.getItem("nestmate")||"null"); if(s) state={...state,...s}; }catch(e){}
+function save(){ try{localStorage.setItem("nestmate",JSON.stringify(state))}catch(e){} }
+
+// ---------- Scoring ----------
+function sim(q,a,b){
+  if(q.type==="pets"){ // 0 has pet,1 lover,2 neutral,3 no pets
+    const M=[[1,1,.8,0],[1,1,.9,.1],[.8,.9,1,.7],[0,.1,.7,1]]; return M[a][b]; }
+  if(q.type==="smoke"){ // 0 indoors,1 outside,2 ok outside,3 smoke-free only
+    const M=[[1,.6,.3,0],[.6,1,.8,.2],[.3,.8,1,.9],[0,.2,.9,1]]; return M[a][b]; }
+  return 1-Math.abs(a-b)/(q.opts.length-1);
+}
+function budgetFit(p){
+  const lo=Math.max(state.answers.budgetMin,p.min), hi=Math.min(state.answers.budgetMax,p.max);
+  if(hi>=lo) return 1;
+  const gap=lo-hi; return Math.max(0,1-gap/300);
+}
+function score(p){
+  let tot=0,wsum=0; const yes=[],no=[];
+  for(const q of Q){ if(q.type==="budget") continue;
+    const s=sim(q,state.answers[q.id],p.a[q.id]); tot+=s*q.w; wsum+=q.w;
+    if(s>=.9 && q.w>=1) yes.push(q.label[p.a[q.id]]);
+    if(s<=.35) no.push(q.label[p.a[q.id]]);
+  }
+  const bf=budgetFit(p); tot+=bf*2; wsum+=2;
+  if(bf===1) yes.unshift("Budget overlaps"); else if(bf<.5) no.unshift("Budget doesn't overlap");
+  let pct=Math.round(tot/wsum*100);
+  // Dealbreakers cap the score
+  const me=state.answers;
+  if((me.smoke===3&&p.a.smoke<=1)||(p.a.smoke===3&&me.smoke<=1)) pct=Math.min(pct,40);
+  if((me.pets===3&&p.a.pets===0)||(p.a.pets===3&&me.pets===0)) pct=Math.min(pct,45);
+  return {pct,yes:yes.slice(0,4),no:no.slice(0,3)};
+}
+
+// ---------- Views ----------
+const $view=document.getElementById("view");
+function go(v){ if(v!=="quiz"&&!state.done) return; state.view=v; save(); render(); }
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>go(b.dataset.view));
+
+function render(){
+  document.querySelectorAll("nav button").forEach(b=>{
+    b.setAttribute("aria-current",b.dataset.view===state.view);
+    b.disabled = b.dataset.view!=="quiz" && !state.done;
+  });
+  ({quiz:renderQuiz,deck:renderDeck,matches:renderMatches})[state.view]();
+}
+
+function renderQuiz(){
+  const q=Q[state.step], n=Q.length, a=state.answers;
+  let body="";
+  if(q.type==="budget"){
+    body=`<div class="budget">
+      <div class="val">$${a.budgetMin.toLocaleString()} – $${a.budgetMax.toLocaleString()} <small>/ month</small></div>
+      <label for="bmin">Minimum<input id="bmin" type="range" min="400" max="2500" step="50" value="${a.budgetMin}"></label>
+      <label for="bmax">Maximum<input id="bmax" type="range" min="400" max="2500" step="50" value="${a.budgetMax}"></label></div>`;
+  } else {
+    body=`<div class="opts" role="group" aria-label="${q.title}">`+q.opts.map((o,i)=>
+      `<button class="opt" id="opt-${q.id}-${i}" data-i="${i}" aria-pressed="${a[q.id]===i}"><span class="k">${String.fromCharCode(65+i)}</span>${o}</button>`).join("")+`</div>`;
+  }
+  const answered = q.type==="budget" || a[q.id]!==undefined;
+  $view.innerHTML=`<section class="panel q">
+    <div class="qhead"><span class="eyebrow">Roommate profile</span><span class="note">${state.step+1} of ${n}</span></div>
+    <div class="progress"><span style="width:${(state.step+1)/n*100}%"></span></div>
+    <h2>${q.title}</h2>${q.hint?`<p class="hint">${q.hint}</p>`:`<p class="hint">Pick the one closest to you.</p>`}
+    ${body}
+    <div class="navrow">
+      <button class="btn ghost" id="back" ${state.step===0?"disabled":""}>Back</button>
+      <button class="btn primary" id="next" ${answered?"":"disabled"}>${state.step===n-1?"See my matches":"Next"}</button>
+    </div></section>`;
+  if(q.type==="budget"){
+    const mn=document.getElementById("bmin"), mx=document.getElementById("bmax"), val=$view.querySelector(".val");
+    const upd=()=>{ let lo=+mn.value, hi=+mx.value; if(lo>hi){ if(document.activeElement===mn) hi=lo; else lo=hi; mn.value=lo; mx.value=hi; }
+      a.budgetMin=lo; a.budgetMax=hi; val.innerHTML=`$${lo.toLocaleString()} – $${hi.toLocaleString()} <small>/ month</small>`; save(); };
+    mn.oninput=upd; mx.oninput=upd;
+  } else {
+    $view.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{
+      a[q.id]=+b.dataset.i; save();
+      if(state.step<n-1){ state.step++; render(); } else renderQuiz();
+    });
+  }
+  document.getElementById("back").onclick=()=>{state.step--;save();render();};
+  document.getElementById("next").onclick=()=>{
+    if(state.step<n-1){state.step++;}
+    else {state.done=true; state.view="deck";}
+    save(); render();
+  };
+}
+
+function remaining(){
+  return P.filter(p=>!state.liked.includes(p.id)&&!state.passed.includes(p.id))
+          .map(p=>({p,s:score(p)})).sort((x,y)=>y.s.pct-x.s.pct);
+}
+
+function cardHTML({p,s}){
+  return `<article class="card" id="card">
+    <div class="card-top">
+      <div class="avatar" style="background:${p.color}" aria-hidden="true">${p.name[0]}</div>
+      <div class="who"><h3>${p.name}, ${p.age}</h3><div class="meta">${p.job} · ${p.area}</div></div>
+      <div class="score"><div class="ring" style="--p:${s.pct}"><b>${s.pct}%</b></div><small>match</small></div>
+    </div>
+    <div class="card-body">
+      <p class="bio">${p.bio}</p>
+      <div class="facts">
+        <div class="fact"><div class="l">Budget</div><div class="v">$${p.min.toLocaleString()}–$${p.max.toLocaleString()}</div></div>
+        <div class="fact"><div class="l">Move-in</div><div class="v">${Q[11].label[p.a.move].replace("Moving ","").replace(" move-in","")}</div></div>
+        <div class="fact"><div class="l">Pets</div><div class="v">${Q[3].label[p.a.pets]}</div></div>
+        <div class="fact"><div class="l">Smoking</div><div class="v">${Q[4].label[p.a.smoke]}</div></div>
+      </div>
+      ${s.yes.length?`<div><div class="eyebrow" style="margin-bottom:6px">You line up on</div><div class="chips">${s.yes.map(t=>`<span class="chip yes">${t}</span>`).join("")}</div></div>`:""}
+      ${s.no.length?`<div><div class="eyebrow" style="margin-bottom:6px">Worth talking about</div><div class="chips">${s.no.map(t=>`<span class="chip no">${t}</span>`).join("")}</div></div>`:""}
+    </div></article>`;
+}
+
+function renderDeck(){
+  const list=remaining();
+  if(!list.length){
+    $view.innerHTML=`<div class="panel empty"><h2>You've seen everyone nearby</h2>
+      <p>Check your matches, or start over to see the profiles again.</p>
+      <div class="navrow" style="justify-content:center"><button class="btn ghost" id="reset">Start over</button><button class="btn primary" id="tom">View matches</button></div></div>`;
+    document.getElementById("reset").onclick=()=>{state.liked=[];state.passed=[];save();render();};
+    document.getElementById("tom").onclick=()=>go("matches");
+    return;
+  }
+  $view.innerHTML=`<div style="display:flex;flex-direction:column;gap:14px">
+    <div class="deckmeta"><span>Sorted by compatibility</span><span>${list.length} left</span></div>
+    ${cardHTML(list[0])}
+    <div class="actions">
+      <button class="btn pass" id="pass">Pass</button>
+      <button class="btn like" id="like">Interested</button>
+    </div>
+    <p class="note" style="text-align:center;margin:0">Example profiles. Retake the quiz anytime to change your scores.</p></div>`;
+  const top=list[0];
+  const act=(liked)=>{
+    const c=document.getElementById("card"); c.classList.add(liked?"out-right":"out-left");
+    setTimeout(()=>{ (liked?state.liked:state.passed).push(top.p.id); save();
+      if(liked && mutual(top)) toast(`It's a match with ${top.p.name.split(" ")[0]}`);
+      render(); },220);
+  };
+  document.getElementById("pass").onclick=()=>act(false);
+  document.getElementById("like").onclick=()=>act(true);
+}
+
+// Simulated: they "like you back" when compatibility is high. A real app checks their swipe.
+function mutual({s}){ return s.pct>=70; }
+
+function renderMatches(){
+  const rows=state.liked.map(id=>P.find(p=>p.id===id)).map(p=>({p,s:score(p)})).sort((a,b)=>b.s.pct-a.s.pct);
+  $view.innerHTML=`<section style="display:flex;flex-direction:column;gap:14px">
+    <h2 style="font-size:24px">Your matches</h2>
+    ${rows.length?`<div class="mlist">${rows.map(({p,s})=>`<div class="mrow">
+      <div class="avatar" style="background:${p.color}" aria-hidden="true">${p.name[0]}</div>
+      <div class="who"><h3>${p.name} · ${s.pct}%</h3><div class="meta">$${p.min}–$${p.max} · ${p.area}</div></div>
+      ${mutual({s})?`<span class="pill mutual">Matched</span>`:`<span class="pill wait">Waiting</span>`}
+      </div>`).join("")}</div>`
+    :`<div class="panel empty"><p>No one yet. Tap Interested on a profile in Discover and they'll show up here.</p></div>`}
+    <button class="btn ghost" id="retake">Retake the quiz</button></section>`;
+  document.getElementById("retake").onclick=()=>{state.step=0;state.done=false;state.view="quiz";save();render();};
+}
+
+function toast(t){ const el=document.getElementById("toast"); el.textContent=t; el.classList.add("show"); setTimeout(()=>el.classList.remove("show"),1800); }
+
+render();
+</script>
+</body>
+</html>
